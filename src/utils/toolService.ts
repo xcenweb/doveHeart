@@ -1,18 +1,11 @@
-/**
- * 工具服务类，用于解析JSON字符串提取工具名、方法名和参数
- */
 class ToolService {
+
     /**
      * 解析输入的JSON字符串
      * @param input 输入的JSON字符串（支持完整或流式累积的字符串）
-     * @returns 解析结果
+     * @returns 解析结果，包含工具名、方法名、参数和是否完整标志
      */
-    parse(input: string): {
-        toolName: string | null;
-        methodName: string | null;
-        params: any[];
-        isComplete: boolean;
-    } {
+    parse(input: string) {
         const isComplete = this.isJsonComplete(input);
         const completedJson = this.completeJson(input);
         const { toolName, methodName } = this.extractTool(completedJson);
@@ -21,7 +14,11 @@ class ToolService {
         return { toolName, methodName, params, isComplete };
     }
 
-    /** 检查JSON是否完整 */
+    /**
+     * 检查JSON是否完整
+     * @param str 待检查的字符串
+     * @returns 是否为完整JSON
+     */
     private isJsonComplete(str: string): boolean {
         try {
             JSON.parse(str);
@@ -31,7 +28,11 @@ class ToolService {
         }
     }
 
-    /** 补全不完整的JSON字符串 */
+    /**
+     * 补全不完整的JSON字符串
+     * @param partial 不完整的JSON字符串
+     * @returns 补全后的JSON字符串
+     */
     private completeJson(partial: string): string {
         if (!partial.trim()) return '{}';
 
@@ -55,7 +56,7 @@ class ToolService {
 
         let completed = partial;
         if (inString) completed += '"';
-        // 修正笔误：将completedmpleted改为completed
+
         for (let i = stack.length - 1; i >= 0; i--) {
             completed += stack[i] === '{' ? '}' : ']';
         }
@@ -67,11 +68,12 @@ class ToolService {
         return completed;
     }
 
-    /** 提取工具名和方法名 */
-    private extractTool(completedJson: string): {
-        toolName: string | null;
-        methodName: string | null;
-    } {
+    /**
+     * 提取工具名和方法名
+     * @param completedJson 补全后的JSON字符串
+     * @returns 工具名和方法名对象
+     */
+    private extractTool(completedJson: string) {
         try {
             const parsed = JSON.parse(completedJson);
             const key = Object.keys(parsed)[0];
@@ -89,8 +91,14 @@ class ToolService {
         }
     }
 
-    /** 提取参数列表 */
-    private extractParams(completedJson: string, toolName: string | null, methodName: string | null): any[] {
+    /**
+     * 提取参数列表
+     * @param completedJson 补全后的JSON字符串
+     * @param toolName 工具名
+     * @param methodName 方法名
+     * @returns 参数数组
+     */
+    private extractParams(completedJson: string, toolName: string | null, methodName: string | null) {
         if (!toolName) return [];
 
         try {
