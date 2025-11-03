@@ -1,6 +1,6 @@
 <template>
     <v-app>
-        <v-navigation-drawer :mobile-breakpoint="750" width="300">
+        <v-navigation-drawer v-model="drawer" :permanent="$vuetify.display.mdAndUp" :temporary="$vuetify.display.mdAndDown">
             <template v-slot:prepend>
                 <v-list-item lines="two" prepend-avatar="/logo.svg" rounded="lg" subtitle="心理健康助手"
                     title="多为智心"></v-list-item>
@@ -10,7 +10,7 @@
 
         <v-app-bar class="px-2" flat>
             <template v-slot:prepend>
-                <v-app-bar-nav-icon></v-app-bar-nav-icon>
+                <v-app-bar-nav-icon @click.stop="drawer = !drawer"></v-app-bar-nav-icon>
             </template>
             <v-app-bar-title>咨询室</v-app-bar-title>
             <v-spacer></v-spacer>
@@ -70,7 +70,7 @@
         </v-main>
 
         <!-- 编辑框 -->
-        <v-footer app color="transparent" class="px-4 d-flex flex-column">
+        <v-footer app color="transparent" class="px-4 py-1 d-flex flex-column">
             <v-card width="100%">
                 <v-textarea v-model="chatService.editorText.value" placeholder="输入消息..." rows="1" auto-grow hide-details
                     variant="solo" flat @keydown="handleKeydown">
@@ -87,8 +87,11 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, watch } from 'vue'
+import { nextTick, watch, ref } from 'vue'
 import { chatService } from '@/utils/chatService'
+import vuetify from '@/plugins/vuetify'
+
+const drawer = ref(vuetify.display.mdAndUp)
 
 // 常见开场白建议
 const suggestions = ["最近感到压力很大", "睡眠质量不好", "工作焦虑", "人际关系困扰", "情绪低落", "家庭矛盾"]
@@ -135,8 +138,4 @@ watch(
         })
     },
 )
-
-// TODO
-import { toolService } from '@/utils/toolService'
-console.log(toolService.parse('{"think": ["value"]}'))
 </script>

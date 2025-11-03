@@ -15,15 +15,26 @@ class AiService {
     }
 
     /**
+     * 从local_messages抽出组装成指定格式的消息
+     */
+    formatMessages() {
+        return chatService.local_messages.value.map(message => {
+            return {
+                role: message.role,
+                content: message.content,
+            }
+        })
+    }
+
+    /**
      * Send a message to the OpenAI API and stream the response back to the client
      * @return A generator that yields chunks of the response
      */
     async* sendCallback() {
         const response = await this.client.chat.completions.create({
             model: settingService.get('model'),
-            messages: chatService.local_messages.value,
+            messages: this.formatMessages(),
             stream: true,
-            temperature: 0.7,
         })
 
         for await (const chunk of response) {

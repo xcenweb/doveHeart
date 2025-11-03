@@ -61,7 +61,6 @@ class ToolService {
             completed += stack[i] === '{' ? '}' : ']';
         }
 
-        // 确保字符串以 { 开头，但避免重复添加
         if (!completed.startsWith('{') && !completed.startsWith('"')) completed = '{' + completed;
         if (!completed.endsWith('}') && !completed.endsWith('"')) completed += '}';
 
@@ -82,7 +81,6 @@ class ToolService {
             const [toolName, methodName] = key.split('.', 2);
             return { toolName, methodName: methodName || null };
         } catch {
-            // 匹配 "key" 或 "key": value 格式，支持各种值类型
             const match = completedJson.match(/"([^"]+)"\s*(:\s*(\{|\[|".*?"|[^,}\]]*))?/);
             if (!match?.[1]) return { toolName: null, methodName: null };
 

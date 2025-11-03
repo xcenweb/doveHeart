@@ -13,8 +13,12 @@ export interface Message {
     role: 'user' | 'system' | 'assistant'
     /** 消息原始内容 */
     content: string
-    /** 消息实际显示内容 */
-    displayContent?: string
+    /** 处理后消息内容 */
+    processedContent?: string
+    /** 消息发送时间 */
+    timestamp?: number
+    /** 消息可见性 */
+    visible?: boolean
 }
 
 class ChatService {
@@ -29,13 +33,10 @@ class ChatService {
      */
     local_messages = ref<Message[]>([])
 
-
     /**
      * 消息回复状态
      */
     reply_status = ref<'ok' | 'error' | 'loading'>('ok')
-
-    constructor() { }
 
     /**
      * 发送消息
@@ -57,6 +58,7 @@ class ChatService {
             const stream = aiService.sendCallback()
             for await (const chunk of stream) {
                 replyMsg.content += chunk.choices[0]?.delta?.content || ''
+                console.log(this.local_messages.value)
                 this.local_messages.value = [...this.local_messages.value]
             }
             this.reply_status.value = 'ok'

@@ -19,8 +19,8 @@ export const optionsSetting = {
     ],
     models: {
         chatglm: [
-            { text: 'glm-4v-flash', value: 'glm-4v-flash' },
             { text: 'glm-4-flash', value: 'glm-4-flash' },
+            { text: 'glm-4', value: 'glm-4' },
         ],
     }
 }
@@ -45,7 +45,7 @@ export const defaultSetting: AppSettings = {
     autoCheckUpdate: true,
     updateChannel: 'beta',
     apiKey: '',
-    model: 'chatglm-4v-flash',
+    model: 'glm-4-flash',
 }
 
 /**
