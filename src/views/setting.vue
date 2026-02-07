@@ -1,201 +1,197 @@
 <template>
     <v-app>
-        <v-app-bar>
+        <v-app-bar flat>
             <v-btn icon="mdi-arrow-left" @click="$router.back()" />
-            <v-app-bar-title>设置</v-app-bar-title>
+            <v-app-bar-title class="font-weight-bold">设置</v-app-bar-title>
         </v-app-bar>
 
         <v-main>
-            <v-container>
+            <v-container class="mx-auto pa-4 pa-sm-8" style="max-width: 800px;">
 
-                <!-- 应用信息卡片 -->
-                <v-card class="mb-4">
-                    <div class="d-flex flex-column flex-md-row">
-                        <v-avatar class="ma-4 mx-auto mx-md-4" size="80">
-                            <v-img src="/logo.svg"></v-img>
-                        </v-avatar>
-                        <div class="d-flex flex-column justify-center pa-4 flex-grow-1">
-                            <v-card-title class="d-flex align-center justify-center justify-md-start pa-0">
-                                <span class="text-h6">多维之心</span>
-                                <v-chip color="primary" size="small" class="ml-3">
-                                    v{{ appVersion || 'null' }}
-                                </v-chip>
-                            </v-card-title>
-                            <v-card-text class="pa-0 pt-2 text-center text-md-left">
-                                <div class="text-subtitle-1 text-medium-emphasis">您的心理健康伙伴</div>
-                            </v-card-text>
-                            <v-card-actions class="pa-0 pt-4 justify-center justify-md-start">
-                                <v-btn prepend-icon="mdi-github" variant="outlined" @click="openGitHub">
-                                    查看 GitHub
-                                </v-btn>
-                            </v-card-actions>
-                        </div>
-                    </div>
-                </v-card>
+                <div class="d-flex flex-column ga-6">
+                    <section>
+                        <h2 class="text-subtitle-1 font-weight-bold mb-3 d-flex align-center text-primary px-2">
+                            <v-icon start size="20">mdi-palette-outline</v-icon>
+                            外观
+                        </h2>
+                        <v-card variant="flat" class="rounded-xl overflow-hidden">
+                            <v-list class="pa-0">
+                                <v-list-item class="py-4 px-4 px-sm-6">
+                                    <div class="d-flex flex-column flex-sm-row align-sm-center justify-space-between w-100 ga-4">
+                                        <div class="d-flex align-center ga-4">
+                                            <v-icon color="medium-emphasis">mdi-theme-light-dark</v-icon>
+                                            <div>
+                                                <div class="font-weight-bold">主题模式</div>
+                                                <div class="text-caption text-medium-emphasis">选择应用的主题模式</div>
+                                            </div>
+                                        </div>
+                                        <div class="w-100 w-sm-auto" style="min-width: 160px;">
+                                            <v-select v-model="settings.theme" :items="optionsSetting.theme" item-title="text"
+                                                item-value="value" density="compact" variant="solo-filled" hide-details flat
+                                                @update:model-value="updateSetting('theme', $event || 'system')" />
+                                        </div>
+                                    </div>
+                                </v-list-item>
+                                <v-divider inset />
+                                <v-list-item class="py-4 px-4 px-sm-6">
+                                    <div class="d-flex flex-column flex-sm-row align-sm-center justify-space-between w-100 ga-4">
+                                        <div class="d-flex align-center ga-4">
+                                            <v-icon color="medium-emphasis">mdi-translate</v-icon>
+                                            <div>
+                                                <div class="font-weight-bold">界面语言</div>
+                                                <div class="text-caption text-medium-emphasis">选择应用的显示语言</div>
+                                            </div>
+                                        </div>
+                                        <div class="w-100 w-sm-auto" style="min-width: 160px;">
+                                            <v-select v-model="settings.language" :items="optionsSetting.language"
+                                                item-title="text" item-value="value" density="compact" variant="solo-filled"
+                                                hide-details flat
+                                                @update:model-value="updateSetting('language', $event)" />
+                                        </div>
+                                    </div>
+                                </v-list-item>
+                            </v-list>
+                        </v-card>
+                    </section>
 
-                <!-- 外观设置卡片 -->
-                <v-card class="mb-4">
-                    <v-card-title class="text-subtitle-1 font-weight-bold">外观</v-card-title>
-                    <v-divider></v-divider>
-                    <v-list lines="two" class="py-0">
-                        <v-list-item>
-                            <template v-slot:title>
-                                <div class="d-flex align-center">
-                                    <v-icon start>mdi-theme-light-dark</v-icon>
-                                    <span>主题</span>
-                                </div>
-                            </template>
-                            <template v-slot:subtitle>
-                                <div class="text-caption">选择应用的主题模式</div>
-                            </template>
-                            <template v-slot:append>
-                                <v-select v-model="settings.theme" :items="optionsSetting.theme" item-title="text"
-                                    item-value="value" density="compact" variant="outlined" hide-details
-                                    style="width: 150px;"
-                                    @update:model-value="updateSetting('theme', $event === null ? 'system' : $event)"
-                                    transition="fade-transition" />
-                            </template>
-                        </v-list-item>
-                        <v-list-item>
-                            <template v-slot:title>
-                                <div class="d-flex align-center">
-                                    <v-icon start>mdi-translate</v-icon>
-                                    <span>界面语言</span>
-                                </div>
-                            </template>
-                            <template v-slot:subtitle>
-                                <div class="text-caption">选择应用的显示语言</div>
-                            </template>
-                            <template v-slot:append>
-                                <v-select v-model="settings.language" :items="optionsSetting.language" item-title="text"
-                                    item-value="value" density="compact" variant="outlined" hide-details
-                                    style="width: 150px;" @update:model-value="updateSetting('language', $event)"
-                                    transition="fade-transition" />
-                            </template>
-                        </v-list-item>
-                    </v-list>
-                </v-card>
+                    <section>
+                        <h2 class="text-subtitle-1 font-weight-bold mb-3 d-flex align-center text-primary px-2">
+                            <v-icon start size="20">mdi-robot-outline</v-icon>
+                            模型
+                        </h2>
+                        <v-card variant="flat" class="rounded-xl overflow-hidden">
+                            <v-list class="pa-0">
+                                <v-list-item class="py-4 px-4 px-sm-6">
+                                    <div class="d-flex flex-column flex-sm-row align-sm-center justify-space-between w-100 ga-4">
+                                        <div class="d-flex align-center ga-4">
+                                            <v-icon color="medium-emphasis">mdi-cloud-outline</v-icon>
+                                            <div>
+                                                <div class="font-weight-bold">AI 供应商</div>
+                                                <div class="text-caption text-medium-emphasis">选择 AI 服务提供商</div>
+                                            </div>
+                                        </div>
+                                        <div class="w-100 w-sm-auto" style="min-width: 200px;">
+                                            <v-select v-model="settings.provider" :items="providerOptions"
+                                                item-title="text" item-value="value" density="compact" variant="solo-filled"
+                                                hide-details flat @update:model-value="updateProvider" />
+                                        </div>
+                                    </div>
+                                </v-list-item>
+                                <v-divider inset />
+                                <v-list-item class="py-4 px-4 px-sm-6">
+                                    <div class="d-flex flex-column flex-sm-row align-sm-center justify-space-between w-100 ga-4">
+                                        <div class="d-flex align-center ga-4">
+                                            <v-icon color="medium-emphasis">mdi-brain</v-icon>
+                                            <div>
+                                                <div class="font-weight-bold">选择模型</div>
+                                                <div class="text-caption text-medium-emphasis">选择 {{ currentProviderName }} 的模型版本</div>
+                                            </div>
+                                        </div>
+                                        <div class="w-100 w-sm-auto" style="min-width: 200px;">
+                                            <v-select v-model="currentModel" :items="currentModelOptions"
+                                                item-title="text" item-value="value" density="compact" variant="solo-filled"
+                                                hide-details flat />
+                                        </div>
+                                    </div>
+                                </v-list-item>
+                                <v-divider inset />
+                                <v-list-item class="py-4 px-4 px-sm-6">
+                                    <div class="d-flex flex-column flex-sm-row align-sm-center justify-space-between w-100 ga-4">
+                                        <div class="d-flex align-center ga-4">
+                                            <v-icon color="medium-emphasis">mdi-key-variant</v-icon>
+                                            <div>
+                                                <div class="font-weight-bold">API 密钥</div>
+                                                <div class="text-caption text-medium-emphasis">{{ currentProviderName }} 的认证密钥</div>
+                                            </div>
+                                        </div>
+                                        <div class="w-100 w-sm-auto" style="min-width: 200px;">
+                                            <v-text-field v-model="currentApiKey" density="compact" variant="solo-filled"
+                                                hide-details flat type="password" placeholder="输入密钥" />
+                                        </div>
+                                    </div>
+                                </v-list-item>
+                            </v-list>
+                        </v-card>
+                    </section>
 
-                <!-- AI模型设置卡片 -->
-                <v-card class="mb-4">
-                    <v-card-title class="text-subtitle-1 font-weight-bold">AI模型</v-card-title>
-                    <v-divider></v-divider>
-                    <v-list lines="two" class="py-0">
-                        <v-list-item>
-                            <template v-slot:title>
-                                <div class="d-flex align-center">
-                                    <v-icon start>mdi-key</v-icon>
-                                    <span>API密钥</span>
-                                </div>
-                            </template>
-                            <template v-slot:subtitle>
-                                <div class="text-caption">用于访问AI服务的认证密钥</div>
-                            </template>
-                            <template v-slot:append>
-                                <v-text-field v-model="settings.apiKey" density="compact" variant="outlined"
-                                    hide-details style="width: 200px;" type="password" placeholder="请输入API密钥"
-                                    @update:model-value="updateSetting('apiKey', $event)"
-                                    transition="fade-transition" />
-                            </template>
-                        </v-list-item>
-                        <v-list-item>
-                            <template v-slot:title>
-                                <div class="d-flex align-center">
-                                    <v-icon start>mdi-brain</v-icon>
-                                    <span>模型选择</span>
-                                </div>
-                            </template>
-                            <template v-slot:subtitle>
-                                <div class="text-caption">选择要使用的AI模型</div>
-                            </template>
-                            <template v-slot:append>
-                                <v-select v-model="settings.model" :items="optionsSetting.models.chatglm"
-                                    item-title="text" item-value="value" density="compact" variant="outlined"
-                                    hide-details style="width: 200px;"
-                                    @update:model-value="updateSetting('model', $event)" transition="fade-transition" />
-                            </template>
-                        </v-list-item>
-                    </v-list>
-                </v-card>
+                    <section>
+                        <h2 class="text-subtitle-1 font-weight-bold mb-3 d-flex align-center text-primary px-2">
+                            <v-icon start size="20">mdi-cached</v-icon>
+                            更新
+                        </h2>
+                        <v-card variant="flat" class="rounded-xl overflow-hidden">
+                            <v-list class="pa-0">
+                                <v-list-item class="py-4 px-4 px-sm-6">
+                                    <div class="d-flex flex-column flex-sm-row align-sm-center justify-space-between w-100 ga-4">
+                                        <div class="d-flex align-center ga-4">
+                                            <v-icon color="medium-emphasis">mdi-update</v-icon>
+                                            <div>
+                                                <div class="font-weight-bold">自动检查更新</div>
+                                                <div class="text-caption text-medium-emphasis">应用启动时自动获取最新版本</div>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex justify-end">
+                                            <v-switch v-model="settings.autoCheckUpdate" color="primary" hide-details inset
+                                                @update:model-value="updateSetting('autoCheckUpdate', $event || false)" />
+                                        </div>
+                                    </div>
+                                </v-list-item>
+                                <v-divider inset />
+                                <v-list-item class="py-4 px-4 px-sm-6">
+                                    <div class="d-flex flex-column flex-sm-row align-sm-center justify-space-between w-100 ga-4">
+                                        <div class="d-flex align-center ga-4">
+                                            <v-icon color="medium-emphasis">mdi-source-branch</v-icon>
+                                            <div>
+                                                <div class="font-weight-bold">更新通道</div>
+                                                <div class="text-caption text-medium-emphasis">正式版更稳定，测试版功能更多</div>
+                                            </div>
+                                        </div>
+                                        <div class="w-100 w-sm-auto" style="min-width: 160px;">
+                                            <v-select v-model="settings.updateChannel" :items="optionsSetting.updateChannel"
+                                                item-title="text" item-value="value" density="compact" variant="solo-filled"
+                                                hide-details flat
+                                                @update:model-value="updateSetting('updateChannel', $event)" />
+                                        </div>
+                                    </div>
+                                </v-list-item>
+                            </v-list>
+                        </v-card>
+                    </section>
 
-                <!-- 更新设置卡片 -->
-                <v-card class="mb-4">
-                    <v-card-title class="text-subtitle-1 font-weight-bold">更新</v-card-title>
-                    <v-divider></v-divider>
-                    <v-list lines="two" class="py-0">
-                        <v-list-item>
-                            <template v-slot:title>
-                                <div class="d-flex align-center">
-                                    <v-icon start>mdi-update</v-icon>
-                                    <span>自动检查更新</span>
-                                </div>
-                            </template>
-                            <template v-slot:subtitle>
-                                <div class="text-caption">是否自动检查应用更新</div>
-                            </template>
-                            <template v-slot:append>
-                                <v-switch v-model="settings.autoCheckUpdate" hide-details color="primary"
-                                    @update:model-value="updateSetting('autoCheckUpdate', $event === null ? false : $event)"
-                                    transition="fade-transition" />
-                            </template>
-                        </v-list-item>
-                        <v-list-item>
-                            <template v-slot:title>
-                                <div class="d-flex align-center">
-                                    <v-icon start>mdi-source-branch</v-icon>
-                                    <span>更新通道</span>
-                                </div>
-                            </template>
-                            <template v-slot:subtitle>
-                                <div class="text-caption">选择更新版本的类型</div>
-                            </template>
-                            <template v-slot:append>
-                                <v-select v-model="settings.updateChannel" :items="optionsSetting.updateChannel"
-                                    item-title="text" item-value="value" density="compact" variant="outlined"
-                                    hide-details style="width: 150px;"
-                                    @update:model-value="updateSetting('updateChannel', $event)"
-                                    transition="fade-transition" />
-                            </template>
-                        </v-list-item>
-                    </v-list>
-                </v-card>
-
-                <!-- 操作按钮 -->
-                <v-card>
-                    <v-card-text class="pa-3">
-                        <v-btn prepend-icon="mdi-refresh" block color="error" variant="outlined" @click="confirmReset"
-                            transition="scale-transition">
+                    <!-- 操作区域 -->
+                    <div class="mt-4 px-2">
+                        <v-btn block color="error" variant="tonal" prepend-icon="mdi-refresh"
+                            class="rounded-pill font-weight-bold" height="48" @click="confirmReset">
                             恢复默认设置
                         </v-btn>
-                    </v-card-text>
-                </v-card>
+                    </div>
+                </div>
             </v-container>
         </v-main>
-    </v-app>
 
-    <!-- 确认重置对话框 -->
-    <v-dialog v-model="showResetDialog" max-width="500" transition="dialog-bottom-transition">
-        <v-card>
-            <v-card-title class="text-subtitle-1 font-weight-bold">确认重置</v-card-title>
-            <v-card-text>确定要将所有设置恢复为默认值吗？</v-card-text>
-            <v-card-actions>
-                <v-spacer></v-spacer>
-                <v-btn @click="showResetDialog = false">取消</v-btn>
-                <v-btn color="primary" @click="resetSettings">确定</v-btn>
-            </v-card-actions>
-        </v-card>
-    </v-dialog>
+        <!-- 确认重置对话框 -->
+        <v-dialog v-model="showResetDialog" max-width="400">
+            <v-card class="rounded-xl pa-4">
+                <v-card-title class="text-h6 font-weight-bold pb-2">确认重置？</v-card-title>
+                <v-card-text class="text-medium-emphasis pb-6">
+                    此操作将清除您所有的个性化配置并恢复为系统默认状态。此操作不可撤销。
+                </v-card-text>
+                <v-card-actions class="px-0 ga-2">
+                    <v-spacer />
+                    <v-btn variant="text" @click="showResetDialog = false" class="px-6 rounded-pill">取消</v-btn>
+                    <v-btn color="error" variant="flat" @click="resetSettings" class="px-6 rounded-pill">
+                        确认重置
+                    </v-btn>
+                </v-card-actions>
+            </v-card>
+        </v-dialog>
+    </v-app>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { getVersion } from '@tauri-apps/api/app'
-import { settingService, type AppSettings, optionsSetting } from '@/utils/settingService'
+import { ref, computed } from 'vue'
+import { settingService, type AppSettings, type ModelProvider, optionsSetting, providerOptions } from '@/utils/settingService'
 import { useSnackbar } from '@/components/global/snackbarService'
-import { openUrl } from '@tauri-apps/plugin-opener'
-
-// 应用版本
-const appVersion = ref('')
 
 // 设置项
 const settings = ref<AppSettings>(settingService.getAll())
@@ -203,16 +199,49 @@ const settings = ref<AppSettings>(settingService.getAll())
 // 重置确认对话框状态
 const showResetDialog = ref(false)
 
-// 打开GitHub链接
-const openGitHub = () => {
-    openUrl('https://github.com/')
+// 当前供应商名称
+const currentProviderName = computed(() => {
+    const provider = providerOptions.find(p => p.value === settings.value.provider)
+    return provider?.text || 'AI'
+})
+
+// 当前供应商的API密钥
+const currentApiKey = computed({
+    get: () => settings.value.apiKeys?.[settings.value.provider] || '',
+    set: (value: string) => {
+        settingService.setApiKey(settings.value.provider, value)
+        settings.value = settingService.getAll()
+        useSnackbar().info('设置已保存')
+    }
+})
+
+// 当前供应商的模型
+const currentModel = computed({
+    get: () => settings.value.models?.[settings.value.provider] || '',
+    set: (value: string) => {
+        settingService.setModel(settings.value.provider, value)
+        settings.value = settingService.getAll()
+        useSnackbar().info('设置已保存')
+    }
+})
+
+// 当前供应商的可选模型列表
+const currentModelOptions = computed(() => {
+    return optionsSetting.models[settings.value.provider] || []
+})
+
+// 更新供应商
+const updateProvider = (value: ModelProvider) => {
+    settingService.set('provider', value)
+    settings.value = settingService.getAll()
+    useSnackbar().info('设置已保存')
 }
 
 // 更新设置项
 const updateSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     settingService.set(key, value)
     settings.value = settingService.getAll()
-    useSnackbar().info('设置已更新')
+    useSnackbar().info('设置已保存')
 }
 
 // 显示重置确认对话框
@@ -227,9 +256,4 @@ const resetSettings = () => {
     showResetDialog.value = false
     useSnackbar().info('已恢复默认设置')
 }
-
-// 页面加载时获取数据
-onMounted(async () => {
-    appVersion.value = await getVersion()
-})
 </script>
