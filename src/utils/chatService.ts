@@ -2,18 +2,34 @@ import { ref } from 'vue'
 import OpenAI from 'openai'
 import { settingService, type ModelProvider } from './settingService'
 import { toolService } from './toolService'
-import promptsV1 from '@/prompts/v1.md?raw'
+import systemPrompt from '@/prompts/v2.md?raw'
 
 const providerBaseURLs: Record<ModelProvider, string> = {
     chatglm: 'https://open.bigmodel.cn/api/paas/v4/',
+}
+
+export interface ToolCall {
+    name: string
+    method?: string
+    params: unknown[]
+    result: unknown
+    timestamp: number
+}
+
+export interface MessageSelectOptions {
+    mode: 'single' | 'multi'
+    options: string[]
+    answered?: boolean
+    selected?: string[]
 }
 
 export interface Message {
     role: 'user' | 'system' | 'assistant'
     content: string
     processedContent?: string
-    thinking?: string
+    toolCalls?: ToolCall[]
     visible?: boolean
+    selectOptions?: MessageSelectOptions
 }
 
 class ChatService {
@@ -26,18 +42,30 @@ class ChatService {
         const text = this.editorText.value.trim()
         if (!text) return
 
-        // 初始化系统提示词
         if (this.messages.value.length === 0) {
-            this.messages.value.push({ role: 'system', content: promptsV1 })
+            this.messages.value.push({ role: 'system', content: systemPrompt })
         }
 
-        // 添加用户消息
-        this.messages.value.push({ role: 'user', content: text })
         this.editorText.value = ''
+        await this.processUserInput(text)
+    }
 
-        // 创建AI回复占位
-        const reply: Message = { role: 'assistant', content: '' }
-        this.messages.value.push(reply)
+    /** 处理用户选择 */
+    async selectOption(selected: string[]) {
+        const lastSelect = [...this.messages.value].reverse().find(m => m.selectOptions && !m.selectOptions.answered)
+        if (lastSelect?.selectOptions) {
+            lastSelect.selectOptions.answered = true
+            lastSelect.selectOptions.selected = selected
+        }
+        await this.processUserInput(selected.join('、'))
+    }
+
+    /** 统一处理用户输入并触发AI回复 */
+    private async processUserInput(text: string) {
+        this.messages.value.push({ role: 'user', content: text })
+        this.messages.value.push({ role: 'assistant', content: '' } as Message)
+        // 从响应式数组取代理引用，确保属性修改触发Vue响应式更新
+        const reply = this.messages.value[this.messages.value.length - 1]
 
         try {
             this.status.value = 'thinking'
@@ -47,22 +75,15 @@ class ChatService {
             console.error('[Chat Error]', error)
             this.status.value = 'error'
             reply.processedContent = '抱歉，我在回复时遇到了一些问题，请稍后再试。'
-            this.triggerUpdate()
         }
     }
 
     /** 工具调用循环：持续执行直到得到send结果 */
     private async processToolLoop(reply: Message) {
-        let thinking = ''
+        reply.toolCalls = []
 
         while (true) {
-            const { raw, parsed, currentThinking } = await this.streamAndParse(reply, thinking)
-            
-            // 累积思考内容
-            if (currentThinking) {
-                thinking = thinking ? `${thinking}\n\n${currentThinking}` : currentThinking
-                reply.thinking = thinking
-            }
+            const { raw, parsed } = await this.streamAndParse(reply)
 
             // JSON未完整，结束
             if (!parsed.isComplete || !parsed.toolName) break
@@ -71,45 +92,51 @@ class ChatService {
             const result = toolService.execute(parsed.toolName, parsed.methodName, parsed.params)
             console.log(`[Tool] ${parsed.toolName}`, result)
 
-            // send工具：结束循环
+            // 记录工具调用
+            reply.toolCalls.push({
+                name: parsed.toolName,
+                method: parsed.methodName || undefined,
+                params: parsed.params,
+                result: result.data ?? result.success,
+                timestamp: Date.now()
+            })
+
+            // send/select工具：结束循环
             if (result.display) {
                 reply.processedContent = result.display
-                this.triggerUpdate()
+                if (parsed.toolName === 'select' && result.data) {
+                    const selectData = result.data as { mode: 'single' | 'multi', options: string[] }
+                    reply.selectOptions = {
+                        mode: selectData.mode,
+                        options: selectData.options
+                    }
+                }
                 break
             }
 
-            // 其他工具：添加隐藏消息，继续循环
             this.addHiddenMessages(raw, result.data ?? result.success)
-            reply.content = ''
+            // 不清空内容，保持流式显示的连续性
+            // reply.content = ''
         }
     }
 
     /** 流式接收并实时解析 */
-    private async streamAndParse(reply: Message, prevThinking: string) {
+    private async streamAndParse(reply: Message) {
         let raw = ''
-        let currentThinking = ''
 
         for await (const chunk of this.stream()) {
             raw += chunk.choices[0]?.delta?.content || ''
-            reply.content = raw
+            reply.content = raw  // 实时更新原始内容
 
             const parsed = toolService.parse(raw)
 
-            // 实时更新think内容
-            if (parsed.toolName === 'think' && parsed.params.length) {
-                currentThinking = (parsed.params as string[]).join('\n')
-                reply.thinking = prevThinking ? `${prevThinking}\n\n${currentThinking}` : currentThinking
-            }
-
-            // 实时更新send内容
-            if (parsed.toolName === 'send' && parsed.params.length) {
+            // 实时更新处理后的内容
+            if ((parsed.toolName === 'send' || parsed.toolName === 'select') && parsed.params.length) {
                 reply.processedContent = parsed.params[0] as string
             }
-
-            this.triggerUpdate()
         }
 
-        return { raw, parsed: toolService.parse(raw), currentThinking }
+        return { raw, parsed: toolService.parse(raw) }
     }
 
     /** 添加隐藏消息（用于工具续聊） */
@@ -118,7 +145,6 @@ class ChatService {
             { role: 'assistant', content: aiResponse, visible: false },
             { role: 'user', content: JSON.stringify(toolResult), visible: false }
         )
-        this.triggerUpdate()
     }
 
     /** 流式调用AI */
@@ -139,10 +165,6 @@ class ChatService {
         for await (const chunk of response) yield chunk
     }
 
-    /** 触发Vue响应式更新 */
-    private triggerUpdate() {
-        this.messages.value = [...this.messages.value]
-    }
 }
 
 export const chatService = new ChatService()

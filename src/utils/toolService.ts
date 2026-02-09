@@ -1,4 +1,4 @@
-import { thinkTool, memoTool, sendTool, type ToolResult } from './tools'
+import { thinkTool, memoTool, sendTool, selectTool, type ToolResult } from './tools'
 
 class ToolService {
 
@@ -32,6 +32,8 @@ class ToolService {
                 return this.executeMemo(methodName, params)
             case 'send':
                 return sendTool.send(params[0] as string)
+            case 'select':
+                return this.executeSelect(methodName, params)
             default:
                 return { success: false, display: `未知工具: ${toolName}` }
         }
@@ -52,6 +54,21 @@ class ToolService {
             case 'modify': return memoTool.modify(p1, p2)
             case 'remove': return memoTool.remove(p1)
             default: return { success: false, display: `未知方法: memo.${method}` }
+        }
+    }
+
+    /**
+     * 执行选择工具调用
+     * @param method 方法名称
+     * @param params 参数
+     * @returns 调用结果
+     */
+    private executeSelect(method: string | null, params: unknown[]): ToolResult {
+        const [prompt, options] = params as [string, string[]]
+        switch (method) {
+            case 'multi': return selectTool.multi(prompt, options)
+            case 'single': return selectTool.single(prompt, options)
+            default: return selectTool.single(prompt, options)
         }
     }
 

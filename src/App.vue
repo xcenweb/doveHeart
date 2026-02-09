@@ -8,7 +8,5 @@ import Snackbar from '@/components/global/snackbar.vue';
 </script>
 
 <style>
-* {
-  overflow: visible !important; /* 或 auto */
-}
+/* 移除了全局 overflow 样式，以允许正常的滚动行为 */
 </style>
