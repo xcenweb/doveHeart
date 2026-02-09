@@ -6,14 +6,6 @@
                 style="overflow-wrap: break-word; word-break: break-word; white-space: pre-wrap;">
                 {{ message.content }}
             </v-card-text>
-            <!-- 调试按钮 -->
-            <v-card-actions v-if="showDebug" class="pt-0">
-                <v-spacer />
-                <v-btn size="x-small" variant="text" color="white" @click="showJsonDialog = true">
-                    <v-icon size="14" start>mdi-code-json</v-icon>
-                    查看JSON
-                </v-btn>
-            </v-card-actions>
         </v-card>
         <v-avatar size="36" color="primary" variant="tonal" class="flex-shrink-0">
             <v-icon size="20">mdi-account</v-icon>
@@ -119,15 +111,6 @@
                         </v-btn>
                     </div>
                 </template>
-                
-                <!-- 调试按钮 -->
-                <v-card-actions v-if="showDebug" class="pt-0">
-                    <v-spacer />
-                    <v-btn size="x-small" variant="text" color="primary" @click="showJsonDialog = true">
-                        <v-icon size="14" start>mdi-code-json</v-icon>
-                        查看JSON
-                    </v-btn>
-                </v-card-actions>
             </v-card>
         </div>
     </div>
@@ -140,7 +123,6 @@ import { chatService, type Message } from '@/utils/chatService'
 const props = defineProps<{
     message: Message
     isThinking: boolean
-    showDebug?: boolean
 }>()
 
 const displayContent = computed(() => {
@@ -151,16 +133,6 @@ const displayContent = computed(() => {
     // 否则显示原始流式内容
     return props.message.content || ''
 })
-
-// 调试相关
-const showJsonDialog = ref(false)
-const formattedJson = computed(() => {
-    return JSON.stringify(props.message, null, 2)
-})
-
-function copyJson() {
-    navigator.clipboard.writeText(formattedJson.value)
-}
 
 // 思考过程展开状态
 const expanded = ref(false)
