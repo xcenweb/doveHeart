@@ -2,7 +2,7 @@ import { ref } from 'vue'
 import OpenAI from 'openai'
 import { settingService, type ModelProvider } from './settingService'
 import { toolService } from './toolService'
-import systemPrompt from '@/prompts/v2.md?raw'
+import systemPrompt from '@/prompts/v4.md?raw'
 
 const providerBaseURLs: Record<ModelProvider, string> = {
     chatglm: 'https://open.bigmodel.cn/api/paas/v4/',
@@ -101,7 +101,6 @@ class ChatService {
                 timestamp: Date.now()
             })
 
-            // send/select工具：结束循环
             if (result.display) {
                 reply.processedContent = result.display
                 if (parsed.toolName === 'select' && result.data) {
@@ -115,8 +114,7 @@ class ChatService {
             }
 
             this.addHiddenMessages(raw, result.data ?? result.success)
-            // 不清空内容，保持流式显示的连续性
-            // reply.content = ''
+            reply.content = ''
         }
     }
 

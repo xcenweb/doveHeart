@@ -71,7 +71,7 @@
 
                 <!-- 消息列表 -->
                 <div v-else class="d-flex flex-column ga-4">
-                    <MessageBubble
+                    <MsgBubble
                         v-for="(message, index) in visibleMessages"
                         :key="index"
                         :message="message"
@@ -91,7 +91,7 @@
 import { nextTick, watch, ref, computed } from 'vue'
 import { chatService } from '@/utils/chatService'
 import { useDisplay } from 'vuetify'
-import MessageBubble from '@/components/chat/MessageBubble.vue'
+import MsgBubble from '@/components/chat/MsgBubble.vue'
 import ChatInput from '@/components/chat/ChatInput.vue'
 
 const { mdAndUp } = useDisplay()

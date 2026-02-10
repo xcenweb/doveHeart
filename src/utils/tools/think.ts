@@ -6,5 +6,5 @@ import type { ToolResult } from './index'
 export function think(thoughts: string[]): ToolResult {
     const thinking = thoughts.join('\n')
     console.log('[Think]', thinking)
-    return { success: true, display: null, thinking }
+    return { success: true, display: null, data: thinking }
 }

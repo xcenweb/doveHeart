@@ -1,11 +1,27 @@
 <template>
     <!-- 用户消息 -->
     <div v-if="message.role === 'user'" class="d-flex justify-end ga-3">
-        <v-card variant="flat" color="primary" class="rounded-xl rounded-te-sm" style="max-width: 75%;">
+        <v-card variant="flat" color="primary" class="rounded-xl rounded-te-sm message-card" style="max-width: 75%;">
             <v-card-text class="pa-3 text-body-2"
                 style="overflow-wrap: break-word; word-break: break-word; white-space: pre-wrap;">
                 {{ message.content }}
             </v-card-text>
+            <v-menu location="bottom end">
+                <template v-slot:activator="{ props: menuProps }">
+                    <v-btn
+                        v-bind="menuProps"
+                        icon="mdi-dots-vertical"
+                        variant="text"
+                        size="x-small"
+                        class="message-menu-btn"
+                    />
+                </template>
+                <v-list density="compact">
+                    <v-list-item @click="showJsonDialog = true" prepend-icon="mdi-code-json">
+                        <v-list-item-title>查看 JSON</v-list-item-title>
+                    </v-list-item>
+                </v-list>
+            </v-menu>
         </v-card>
         <v-avatar size="36" color="primary" variant="tonal" class="flex-shrink-0">
             <v-icon size="20">mdi-account</v-icon>
@@ -47,12 +63,23 @@
                                     >
                                         <div class="text-caption">
                                             <span class="font-weight-bold">{{ tool.method ? `${tool.name}.${tool.method}` : tool.name }}</span>
-                                            <span class="text-medium-emphasis ml-1" style="opacity: 0.75;">
-                                                ({{ tool.params.length ? tool.params.map(p => typeof p === 'string' ? `"${p}"` : JSON.stringify(p)).join(', ') : '无参数' }})
-                                            </span>
-                                            <div v-if="tool.result !== undefined" class="text-medium-emphasis" style="opacity: 0.75;">
-                                                → {{ JSON.stringify(tool.result) }}
-                                            </div>
+                                            
+                                            <!-- think工具特殊显示 -->
+                                            <template v-if="tool.name === 'think'">
+                                                <div class="mt-1 text-medium-emphasis" style="opacity: 0.9; white-space: pre-wrap;">
+                                                    {{ tool.result }}
+                                                </div>
+                                            </template>
+                                            
+                                            <!-- 其他工具显示参数和结果 -->
+                                            <template v-else>
+                                                <span class="text-medium-emphasis ml-1" style="opacity: 0.75;">
+                                                    ({{ tool.params.length ? tool.params.map(p => typeof p === 'string' ? `"${p}"` : JSON.stringify(p)).join(', ') : '无参数' }})
+                                                </span>
+                                                <div v-if="tool.result !== undefined" class="text-medium-emphasis" style="opacity: 0.75;">
+                                                    → {{ JSON.stringify(tool.result) }}
+                                                </div>
+                                            </template>
                                         </div>
                                     </v-timeline-item>
                                 </v-timeline>
@@ -63,7 +90,7 @@
             </v-card>
             
             <!-- 消息内容 -->
-            <v-card variant="flat" class="rounded-xl rounded-ts-sm">
+            <v-card variant="flat" class="rounded-xl rounded-ts-sm message-card">
                 <!-- 加载状态 -->
                 <div v-if="isThinking && !displayContent" class="pa-3 d-flex align-center">
                     <v-progress-circular
@@ -111,14 +138,57 @@
                         </v-btn>
                     </div>
                 </template>
+
+                <!-- 消息菜单 -->
+                <v-menu location="bottom end">
+                    <template v-slot:activator="{ props: menuProps }">
+                        <v-btn
+                            v-bind="menuProps"
+                            icon="mdi-dots-vertical"
+                            variant="text"
+                            size="x-small"
+                            class="message-menu-btn"
+                        />
+                    </template>
+                    <v-list density="compact">
+                        <v-list-item @click="showJsonDialog = true" prepend-icon="mdi-code-json">
+                            <v-list-item-title>查看 JSON</v-list-item-title>
+                        </v-list-item>
+                    </v-list>
+                </v-menu>
             </v-card>
         </div>
     </div>
+
+    <!-- JSON 查看对话框 -->
+    <v-dialog v-model="showJsonDialog" max-width="800">
+        <v-card>
+            <v-card-title class="d-flex align-center pa-4">
+                <v-icon class="mr-2">mdi-code-json</v-icon>
+                消息 JSON
+                <v-spacer />
+                <v-btn icon="mdi-close" variant="text" size="small" @click="showJsonDialog = false" />
+            </v-card-title>
+            <v-divider />
+            <v-card-text class="pa-4">
+                <pre class="json-content">{{ formattedJson }}</pre>
+            </v-card-text>
+            <v-divider />
+            <v-card-actions class="pa-4">
+                <v-spacer />
+                <v-btn variant="text" @click="showJsonDialog = false">关闭</v-btn>
+                <v-btn variant="tonal" color="primary" prepend-icon="mdi-content-copy" @click="copyJson">
+                    复制
+                </v-btn>
+            </v-card-actions>
+        </v-card>
+    </v-dialog>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { chatService, type Message } from '@/utils/chatService'
+import snackbarService from '@/components/global/snackbarService'
 
 const props = defineProps<{
     message: Message
@@ -126,19 +196,25 @@ const props = defineProps<{
 }>()
 
 const displayContent = computed(() => {
-    // 如果有处理后的内容，优先显示
     if (props.message.processedContent) {
         return props.message.processedContent
     }
-    // 否则显示原始流式内容
     return props.message.content || ''
 })
 
-// 思考过程展开状态
 const expanded = ref(false)
-
-// 多选暂存
 const pendingSelections = ref(new Set<string>())
+const showJsonDialog = ref(false)
+
+const formattedJson = computed(() => {
+    return JSON.stringify(props.message, null, 2)
+})
+
+function copyJson() {
+    navigator.clipboard.writeText(formattedJson.value)
+    snackbarService.success('已复制到剪贴板')
+    showJsonDialog.value = false
+}
 
 function isOptionSelected(option: string): boolean {
     if (props.message.selectOptions?.answered) {
@@ -178,8 +254,6 @@ function confirmMultiSelect() {
 </script>
 
 <style scoped>
-
-
 .thinking-icon {
     animation: pulse 1.5s ease-in-out infinite;
 }
@@ -191,5 +265,32 @@ function confirmMultiSelect() {
 
 .cursor-pointer {
     cursor: pointer;
+}
+
+.message-card {
+    position: relative;
+}
+
+.message-menu-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.message-card:hover .message-menu-btn {
+    opacity: 1;
+}
+
+.json-content {
+    background: rgba(0, 0, 0, 0.05);
+    padding: 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    max-height: 60vh;
 }
 </style>
