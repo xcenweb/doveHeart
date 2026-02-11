@@ -1,12 +1,10 @@
 import { ref } from 'vue'
 import OpenAI from 'openai'
-import { settingService, type ModelProvider } from './settingService'
+import { settingService, optionsSetting } from './settingService'
 import { toolService } from './toolService'
 import systemPrompt from '@/prompts/v4.md?raw'
 
-const providerBaseURLs: Record<ModelProvider, string> = {
-    chatglm: 'https://open.bigmodel.cn/api/paas/v4/',
-}
+
 
 export interface ToolCall {
     name: string
@@ -149,13 +147,13 @@ class ChatService {
     private async *stream() {
         const provider = settingService.get('provider')
         const client = new OpenAI({
-            apiKey: settingService.get('apiKeys')[provider],
-            baseURL: providerBaseURLs[provider],
+            apiKey: settingService.get('apiKeys')?.[provider] || '',
+            baseURL: optionsSetting.providers[provider]?.api || '',
             dangerouslyAllowBrowser: true
         })
 
         const response = await client.chat.completions.create({
-            model: settingService.get('models')[provider],
+            model: settingService.get('models')?.[provider] || 'glm-4-flash',
             messages: this.messages.value.map(m => ({ role: m.role, content: m.content })),
             stream: true
         })

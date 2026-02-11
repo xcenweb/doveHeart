@@ -71,7 +71,7 @@
                                             </div>
                                         </div>
                                         <div class="w-100 w-sm-auto" style="min-width: 200px;">
-                                            <v-select v-model="settings.provider" :items="providerOptions"
+                                            <v-select v-model="settings.provider" :items="Object.entries(optionsSetting.providers).map(([key, provider]) => ({ text: provider.name, value: key }))"
                                                 item-title="text" item-value="value" density="compact" variant="solo-filled"
                                                 hide-details flat @update:model-value="updateProvider" />
                                         </div>
@@ -190,7 +190,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { settingService, type AppSettings, type ModelProvider, optionsSetting, providerOptions } from '@/utils/settingService'
+import { settingService, type AppSettings, optionsSetting } from '@/utils/settingService'
 import { useSnackbar } from '@/components/global/snackbarService'
 
 // 设置项
@@ -201,15 +201,19 @@ const showResetDialog = ref(false)
 
 // 当前供应商名称
 const currentProviderName = computed(() => {
-    const provider = providerOptions.find(p => p.value === settings.value.provider)
-    return provider?.text || 'AI'
+    const provider = optionsSetting.providers[settings.value.provider]
+    return provider?.name || 'AI'
 })
 
 // 当前供应商的API密钥
 const currentApiKey = computed({
     get: () => settings.value.apiKeys?.[settings.value.provider] || '',
     set: (value: string) => {
-        settingService.setApiKey(settings.value.provider, value)
+        if (!settings.value.apiKeys) {
+            settings.value.apiKeys = { chatglm: '' }
+        }
+        settings.value.apiKeys[settings.value.provider] = value
+        settingService.set('apiKeys', settings.value.apiKeys)
         settings.value = settingService.getAll()
         useSnackbar().info('设置已保存')
     }
@@ -219,7 +223,11 @@ const currentApiKey = computed({
 const currentModel = computed({
     get: () => settings.value.models?.[settings.value.provider] || '',
     set: (value: string) => {
-        settingService.setModel(settings.value.provider, value)
+        if (!settings.value.models) {
+            settings.value.models = { chatglm: 'glm-4-flash' }
+        }
+        settings.value.models[settings.value.provider] = value
+        settingService.set('models', settings.value.models)
         settings.value = settingService.getAll()
         useSnackbar().info('设置已保存')
     }
@@ -227,11 +235,11 @@ const currentModel = computed({
 
 // 当前供应商的可选模型列表
 const currentModelOptions = computed(() => {
-    return optionsSetting.models[settings.value.provider] || []
+    return optionsSetting.providers[settings.value.provider]?.models || []
 })
 
 // 更新供应商
-const updateProvider = (value: ModelProvider) => {
+const updateProvider = (value: string) => {
     settingService.set('provider', value)
     settings.value = settingService.getAll()
     useSnackbar().info('设置已保存')
