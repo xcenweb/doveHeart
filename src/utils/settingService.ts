@@ -1,4 +1,5 @@
 import { useStorage } from '@vueuse/core'
+import { applyTheme, getSystemThemeMediaQuery } from '@/plugins/vuetify'
 
 /**
  * 可选设置项
@@ -62,7 +63,7 @@ export const defaultSetting: AppSettings = {
     updateChannel: 'beta',
     provider: 'chatglm',
     apiKeys: { chatglm: '', openai: '' },
-    models: { chatglm: 'glm-4-flash', openai: 'gpt-3.5-turbo' },
+    models: { chatglm: 'glm-4-flash', openai: 'gpt-4' },
 }
 
 /**
@@ -105,12 +106,31 @@ class SettingService {
     }
 
 
-
     /**
      * 重置所有设置项
      */
     reset() {
         this.storage.value = { ...defaultSetting }
+    }
+
+    /**
+     * 应用当前主题设置
+     */
+    applyTheme() {
+        const theme = this.storage.value.theme as 'system' | 'light' | 'dark'
+        applyTheme(theme)
+    }
+
+    /**
+     * 初始化主题监听
+     */
+    initThemeWatcher() {
+        const mediaQuery = getSystemThemeMediaQuery()
+        mediaQuery.addEventListener('change', () => {
+            if (this.storage.value.theme === 'system') {
+                applyTheme('system')
+            }
+        })
     }
 }
 

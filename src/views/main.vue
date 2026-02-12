@@ -1,5 +1,6 @@
 <template>
     <v-app>
+
         <!-- 导航抽屉 -->
         <v-navigation-drawer v-model="drawer" :permanent="$vuetify.display.mdAndUp" :temporary="$vuetify.display.smAndDown">
             <template v-slot:prepend>
@@ -38,7 +39,7 @@
         <v-app-bar flat>
             <v-app-bar-nav-icon @click.stop="drawer = !drawer" />
             <v-app-bar-title class="font-weight-bold">咨询室</v-app-bar-title>
-            <v-btn icon="mdi-cog" variant="text" class="d-md-none" @click="$router.push('/setting')" />
+            <v-btn icon="mdi-cog" variant="text" @click="$router.push('/setting')" />
         </v-app-bar>
 
         <!-- 主内容区 -->
@@ -48,11 +49,11 @@
                 <!-- 空状态 -->
                 <div v-if="visibleMessages.length === 0"
                     class="d-flex flex-column align-center justify-center text-center" style="min-height: 70vh;">
-                    
+
                     <v-avatar size="100" color="primary" variant="tonal" class="mb-6">
                         <v-icon size="56">mdi-head-heart</v-icon>
                     </v-avatar>
-                    
+
                     <h1 class="text-h5 font-weight-bold mb-2">欢迎来到多为心理咨询室</h1>
 
                     <v-card variant="flat" class="rounded-xl pa-4" style="max-width: 420px;">
@@ -84,23 +85,32 @@
 
         <!-- 底部输入区 -->
         <ChatInput ref="chatInputRef" />
+
+        <!-- API Key 引导弹窗 -->
+        <ApiKeyGuide
+            v-model="showApiKeyGuide"
+            @complete="onApiKeyConfigured"
+        />
     </v-app>
 </template>
 
 <script setup lang="ts">
-import { nextTick, watch, ref, computed } from 'vue'
+import { nextTick, watch, ref, computed, onMounted } from 'vue'
 import { chatService } from '@/utils/chatService'
+import { settingService } from '@/utils/settingService'
 import { useDisplay } from 'vuetify'
 import MsgBubble from '@/components/chat/MsgBubble.vue'
 import ChatInput from '@/components/chat/ChatInput.vue'
+import ApiKeyGuide from '@/components/ApiKeyGuide.vue'
 
 const { mdAndUp } = useDisplay()
 const drawer = ref(mdAndUp.value)
 const chatInputRef = ref<InstanceType<typeof ChatInput>>()
+const showApiKeyGuide = ref(false)
 
 const suggestions = ['最近感到压力很大', '睡眠质量不好', '工作焦虑', '人际关系困扰', '情绪低落', '家庭矛盾']
 
-const visibleMessages = computed(() => 
+const visibleMessages = computed(() =>
     chatService.messages.value.filter(m => m.visible !== false && m.role !== 'system')
 )
 
@@ -135,4 +145,23 @@ watch(
         scrollToBottom()
     }
 )
+
+// 检查是否需要显示 API Key 引导弹窗
+function checkApiKeyGuide() {
+    const settings = settingService.getAll()
+    const apiKey = settings.apiKeys?.[settings.provider] || ''
+    if (!apiKey) {
+        showApiKeyGuide.value = true
+    }
+}
+
+// API Key 配置完成回调
+function onApiKeyConfigured() {
+    console.log('API Key configured')
+}
+
+// 页面加载时检查
+onMounted(() => {
+    checkApiKeyGuide()
+})
 </script>

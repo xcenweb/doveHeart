@@ -12,7 +12,7 @@ import { md3 } from 'vuetify/blueprints'
 import '@mdi/font/css/materialdesignicons.css'
 import { aliases, mdi } from 'vuetify/iconsets/mdi'
 
-const light_theme: ThemeDefinition = {
+const lightTheme: ThemeDefinition = {
     dark: false,
     colors: {
         primary: colors.purple.lighten2,
@@ -20,7 +20,8 @@ const light_theme: ThemeDefinition = {
         surface: colors.grey.lighten5,
     },
 }
-const dark_theme: ThemeDefinition = {
+
+const darkTheme: ThemeDefinition = {
     dark: true,
     colors: {
         primary: colors.purple.lighten4,
@@ -30,14 +31,13 @@ const dark_theme: ThemeDefinition = {
 }
 
 // https://vuetifyjs.com/en/introduction/why-vuetify/#feature-guides
-export default createVuetify({
+const vuetify = createVuetify({
     blueprint: md3,
-    // ssr: true,
     theme: {
-        defaultTheme: 'system',
+        defaultTheme: 'light',
         themes: {
-            light: light_theme,
-            dark: dark_theme
+            light: lightTheme,
+            dark: darkTheme
         }
     },
     icons: {
@@ -48,3 +48,23 @@ export default createVuetify({
         },
     },
 })
+
+/**
+ * 应用主题
+ * @param theme - 主题模式: 'system' | 'light' | 'dark'
+ */
+export function applyTheme(theme: 'system' | 'light' | 'dark') {
+    const resolvedTheme = theme === 'system'
+        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+        : theme
+    vuetify.theme.change(resolvedTheme)
+}
+
+/**
+ * 获取系统主题
+ */
+export function getSystemThemeMediaQuery() {
+    return window.matchMedia('(prefers-color-scheme: dark)')
+}
+
+export default vuetify

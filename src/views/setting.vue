@@ -189,12 +189,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { settingService, type AppSettings, optionsSetting } from '@/utils/settingService'
 import { useSnackbar } from '@/components/global/snackbarService'
 
 // 设置项
 const settings = ref<AppSettings>(settingService.getAll())
+
+// 初始化主题监听
+onMounted(() => {
+    settingService.initThemeWatcher()
+})
 
 // 重置确认对话框状态
 const showResetDialog = ref(false)
@@ -249,6 +254,9 @@ const updateProvider = (value: string) => {
 const updateSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     settingService.set(key, value)
     settings.value = settingService.getAll()
+    if (key === 'theme') {
+        settingService.applyTheme()
+    }
     useSnackbar().info('设置已保存')
 }
 
@@ -261,6 +269,7 @@ const confirmReset = () => {
 const resetSettings = () => {
     settingService.reset()
     settings.value = settingService.getAll()
+    settingService.applyTheme()
     showResetDialog.value = false
     useSnackbar().info('已恢复默认设置')
 }

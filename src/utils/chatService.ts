@@ -2,9 +2,7 @@ import { ref } from 'vue'
 import OpenAI from 'openai'
 import { settingService, optionsSetting } from './settingService'
 import { toolService } from './toolService'
-import systemPrompt from '@/prompts/v4.md?raw'
-
-
+import systemPrompt from '@/prompts/v2.md?raw'
 
 export interface ToolCall {
     name: string
