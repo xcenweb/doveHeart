@@ -15,6 +15,7 @@
     "@tauri-apps/plugin-opener": "^2",
     "@vueuse/components": "^14.0.0",
     "@vueuse/core": "^14.0.0",
+    "idb": "^8.0.3",
     "openai": "^6.7.0",
     "vue": "^3.5.13",
     "vue-router": "^4.6.3"

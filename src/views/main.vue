@@ -19,10 +19,38 @@
 
             <v-divider />
 
-            <v-list nav class="pa-2">
-                <v-list-item prepend-icon="mdi-message-text-outline" title="咨询室" value="chat" rounded="lg"
-                    color="primary" active />
-                <v-list-item prepend-icon="mdi-history" title="历史记录" value="history" rounded="lg" disabled />
+            <!-- 咨询室列表 -->
+            <v-list nav class="pa-2" subheader>
+                <div class="d-flex justify-space-between align-center mb-1">
+                    <v-list-subheader class="pa-0">咨询室</v-list-subheader>
+                    <v-btn icon="mdi-plus" variant="text" size="small" @click="createNewRoom" />
+                </div>
+                <v-list-item
+                    v-for="room in rooms"
+                    :key="room.id"
+                    :title="room.name"
+                    :active="chatService.currentRoomId.value === room.id"
+                    rounded="lg"
+                    color="primary"
+                    @click="enterRoom(room.id!)"
+                >
+                    <template v-slot:prepend>
+                        <v-icon :icon="room.isPinned ? 'mdi-pin' : 'mdi-forum'" />
+                    </template>
+                    <template v-slot:append>
+                        <v-menu v-model="room.menuOpen" :close-on-content-click="false" activator="parent">
+                            <template v-slot:activator="{ props }">
+                                <v-btn icon="mdi-dots-horizontal" variant="text" size="x-small" v-bind="props" />
+                            </template>
+                            <v-list density="compact">
+                                <v-list-item v-if="!room.isPinned" prepend-icon="mdi-pin" title="置顶" @click="pinRoom(room)" />
+                                <v-list-item v-else prepend-icon="mdi-pin-off" title="取消置顶" @click="unpinRoom(room)" />
+                                <v-list-item prepend-icon="mdi-pencil" title="重命名" @click="openRenameDialog(room)" />
+                                <v-list-item prepend-icon="mdi-delete" title="删除" class="text-error" @click="openDeleteDialog(room)" />
+                            </v-list>
+                        </v-menu>
+                    </template>
+                </v-list-item>
             </v-list>
 
             <template v-slot:append>
@@ -38,8 +66,7 @@
         <!-- 应用栏 -->
         <v-app-bar flat>
             <v-app-bar-nav-icon @click.stop="drawer = !drawer" />
-            <v-app-bar-title class="font-weight-bold">咨询室</v-app-bar-title>
-            <v-btn icon="mdi-cog" variant="text" @click="$router.push('/setting')" />
+            <v-app-bar-title class="font-weight-bold">{{ currentRoomName }}</v-app-bar-title>
         </v-app-bar>
 
         <!-- 主内容区 -->
@@ -72,47 +99,107 @@
 
                 <!-- 消息列表 -->
                 <div v-else class="d-flex flex-column ga-4">
-                    <MsgBubble
-                        v-for="(message, index) in visibleMessages"
-                        :key="index"
-                        :message="message"
-                        :is-thinking="chatService.status.value === 'thinking'"
-                    />
+                    <ChatBubble v-for="(message, index) in visibleMessages" :key="index" :message="message" :status="chatService.status.value" />
                 </div>
 
             </v-container>
         </v-main>
 
         <!-- 底部输入区 -->
-        <ChatInput ref="chatInputRef" />
+        <ChatInput ref="chatInputRef" @roomCreated="loadRooms" />
 
         <!-- API Key 引导弹窗 -->
-        <ApiKeyGuide
-            v-model="showApiKeyGuide"
-            @complete="onApiKeyConfigured"
-        />
+        <ApiKeyGuide v-model="showApiKeyGuide" @complete="onApiKeyConfigured"/>
     </v-app>
 </template>
 
 <script setup lang="ts">
 import { nextTick, watch, ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { chatService } from '@/utils/chatService'
 import { settingService } from '@/utils/settingService'
+import { type ChatRoom } from '@/utils/dbService'
 import { useDisplay } from 'vuetify'
-import MsgBubble from '@/components/chat/MsgBubble.vue'
-import ChatInput from '@/components/chat/ChatInput.vue'
+import { useDialog } from '@/components/global/dialogService'
+import ChatBubble from '@/components/ChatBubble.vue'
+import ChatInput from '@/components/ChatInput.vue'
 import ApiKeyGuide from '@/components/ApiKeyGuide.vue'
 
+const route = useRoute()
+const router = useRouter()
 const { mdAndUp } = useDisplay()
+const dialog = useDialog()
+
 const drawer = ref(mdAndUp.value)
 const chatInputRef = ref<InstanceType<typeof ChatInput>>()
 const showApiKeyGuide = ref(false)
+const rooms = ref<RoomWithMenu[]>([])
 
 const suggestions = ['最近感到压力很大', '睡眠质量不好', '工作焦虑', '人际关系困扰', '情绪低落', '家庭矛盾']
 
 const visibleMessages = computed(() =>
-    chatService.messages.value.filter(m => m.visible !== false && m.role !== 'system')
+    chatService.messages.value.filter(m => m.role !== 'system')
 )
+
+const currentRoomName = computed(() => {
+    if (chatService.currentRoomId.value === null) {
+        return '咨询室'
+    }
+    const room = rooms.value.find(r => r.id === chatService.currentRoomId.value)
+    return room?.name || '咨询室'
+})
+
+// 加载咨询室列表
+async function loadRooms() {
+    rooms.value = await chatService.getRooms()
+}
+
+// 进入咨询室
+function enterRoom(roomId: number) {
+    router.push(`/room/${roomId}`)
+}
+
+// 创建新咨询室（草稿状态，未写入数据库）
+function createNewRoom() {
+    chatService.createRoom()
+}
+
+type RoomWithMenu = ChatRoom & { menuOpen?: boolean }
+
+// 打开重命名弹窗
+async function openRenameDialog(room: RoomWithMenu) {
+    room.menuOpen = false
+    const result = await dialog.prompt('重命名咨询室', room.name)
+    if (result.confirmed && result.value?.trim()) {
+        await chatService.renameRoom(room.id!, result.value.trim())
+        await loadRooms()
+    }
+}
+
+// 打开删除弹窗
+async function openDeleteDialog(room: RoomWithMenu) {
+    room.menuOpen = false
+    const result = await dialog.confirmDialog('删除咨询室', `确定要删除"${room.name}"吗？此操作不可恢复。`)
+    if (result.confirmed) {
+        await chatService.deleteRoom(room.id!)
+        await loadRooms()
+        router.push('/')
+    }
+}
+
+// 置顶咨询室
+async function pinRoom(room: RoomWithMenu) {
+    room.menuOpen = false
+    await chatService.pinRoom(room.id!)
+    await loadRooms()
+}
+
+// 取消置顶
+async function unpinRoom(room: RoomWithMenu) {
+    room.menuOpen = false
+    await chatService.unpinRoom(room.id!)
+    await loadRooms()
+}
 
 function setSuggestion(suggestion: string) {
     chatService.editorText.value = suggestion
@@ -122,7 +209,6 @@ function setSuggestion(suggestion: string) {
 // 自动滚动到底部
 function scrollToBottom() {
     nextTick(() => {
-        // 使用 window 滚动到页面底部
         window.scrollTo({
             top: document.documentElement.scrollHeight,
             behavior: 'smooth'
@@ -146,6 +232,21 @@ watch(
     }
 )
 
+// 监听路由变化
+watch(
+    () => route.params.id,
+    async (newId) => {
+        if (newId) {
+            const roomId = parseInt(newId as string)
+            await chatService.switchRoom(roomId)
+            await loadRooms()
+        } else {
+            await chatService.switchRoom(null)
+        }
+    },
+    { immediate: true }
+)
+
 // 检查是否需要显示 API Key 引导弹窗
 function checkApiKeyGuide() {
     const settings = settingService.getAll()
@@ -161,7 +262,8 @@ function onApiKeyConfigured() {
 }
 
 // 页面加载时检查
-onMounted(() => {
+onMounted(async () => {
+    await loadRooms()
     checkApiKeyGuide()
 })
 </script>

@@ -1,147 +1,137 @@
 import { ref } from 'vue'
 import OpenAI from 'openai'
 import { settingService, optionsSetting } from './settingService'
-import { toolService } from './toolService'
-import systemPrompt from '@/prompts/v2.md?raw'
-
-export interface ToolCall {
-    name: string
-    method?: string
-    params: unknown[]
-    result: unknown
-    timestamp: number
-}
-
-export interface MessageSelectOptions {
-    mode: 'single' | 'multi'
-    options: string[]
-    answered?: boolean
-    selected?: string[]
-}
+import { dbService, type ChatRoom } from './dbService'
+import systemPrompt from '@/prompts/tool-v2.md?raw'
 
 export interface Message {
     role: 'user' | 'system' | 'assistant'
     content: string
-    processedContent?: string
-    toolCalls?: ToolCall[]
-    visible?: boolean
-    selectOptions?: MessageSelectOptions
 }
 
 class ChatService {
     editorText = ref('')
     messages = ref<Message[]>([])
-    status = ref<'idle' | 'thinking' | 'error'>('idle')
+    status = ref<'ready' | 'loading' | 'error'>('ready')
+    currentRoomId = ref<number | null>(null)
 
-    /** 发送消息 */
-    async send() {
-        const text = this.editorText.value.trim()
-        if (!text) return
+    /**
+     * 切换到指定咨询室
+     */
+    async switchRoom(roomId: number | null) {
+        this.currentRoomId.value = roomId
+        this.messages.value = []
+        this.status.value = 'ready'
 
-        if (this.messages.value.length === 0) {
-            this.messages.value.push({ role: 'system', content: systemPrompt })
+        if (roomId !== null) {
+            await this.loadRoomHistory(roomId)
+        }
+    }
+
+    /**
+     * 创建新咨询室（草稿状态，未写入数据库）
+     */
+    createRoom() {
+        this.currentRoomId.value = -1  // -1 表示草稿状态
+        this.messages.value = []
+        this.status.value = 'ready'
+    }
+
+    /**
+     * 获取所有咨询室
+     */
+    async getRooms(): Promise<ChatRoom[]> {
+        return await dbService.getAllRooms()
+    }
+
+    /**
+     * 重命名咨询室
+     */
+    async renameRoom(roomId: number, name: string) {
+        await dbService.updateRoomName(roomId, name)
+    }
+
+    /**
+     * 置顶咨询室
+     */
+    async pinRoom(roomId: number) {
+        await dbService.pinRoom(roomId)
+    }
+
+    /**
+     * 取消置顶
+     */
+    async unpinRoom(roomId: number) {
+        await dbService.unpinRoom(roomId)
+    }
+
+    /**
+     * 删除咨询室
+     */
+    async deleteRoom(roomId: number) {
+        await dbService.deleteRoom(roomId)
+        if (this.currentRoomId.value === roomId) {
+            await this.switchRoom(null)
+        }
+    }
+
+    /**
+     * 加载指定咨询室的历史消息
+     */
+    async loadRoomHistory(roomId: number) {
+        const history = await dbService.getRoomMessages(roomId)
+        if (history.length > 0) {
+            this.messages.value = history
+                .filter(m => m.role !== 'system')
+                .map(m => ({ role: m.role, content: m.content }))
+        }
+    }
+
+    /**
+     * 获取回复
+     */
+    async getReply(text: string) {
+        // 如果没有有效咨询室（null 或草稿状态 -1），创建真正的咨询室
+        if (this.currentRoomId.value === null || this.currentRoomId.value === -1) {
+            const roomId = await dbService.createRoom(text.slice(0, 20))
+            this.currentRoomId.value = roomId
+        }
+
+        const roomId = this.currentRoomId.value!
+
+        // 仅在内存中添加 system prompt，不存储到数据库（避免重复和缓存问题）
+        if (this.messages.value.length === 0 || this.messages.value[0].role !== 'system') {
+            this.messages.value.unshift({ role: 'system', content: systemPrompt })
         }
 
         this.editorText.value = ''
-        await this.processUserInput(text)
-    }
-
-    /** 处理用户选择 */
-    async selectOption(selected: string[]) {
-        const lastSelect = [...this.messages.value].reverse().find(m => m.selectOptions && !m.selectOptions.answered)
-        if (lastSelect?.selectOptions) {
-            lastSelect.selectOptions.answered = true
-            lastSelect.selectOptions.selected = selected
-        }
-        await this.processUserInput(selected.join('、'))
-    }
-
-    /** 统一处理用户输入并触发AI回复 */
-    private async processUserInput(text: string) {
         this.messages.value.push({ role: 'user', content: text })
-        this.messages.value.push({ role: 'assistant', content: '' } as Message)
-        // 从响应式数组取代理引用，确保属性修改触发Vue响应式更新
+        await dbService.addMessage({ roomId, role: 'user', content: text, timestamp: Date.now() })
+
+        const assistantMessage: Message = { role: 'assistant', content: '' }
+        this.messages.value.push(assistantMessage)
+        const assistantDbId = await dbService.addMessage({ roomId, role: 'assistant', content: '', timestamp: Date.now() })
+
+        this.status.value = 'loading'
         const reply = this.messages.value[this.messages.value.length - 1]
 
         try {
-            this.status.value = 'thinking'
-            await this.processToolLoop(reply)
-            this.status.value = 'idle'
+            for await (const chunk of this.stream()) {
+                const content = chunk.choices[0]?.delta?.content || ''
+                reply.content += content
+            }
+            await dbService.updateMessage(assistantDbId, reply.content)
+            this.status.value = 'ready'
         } catch (error) {
-            console.error('[Chat Error]', error)
             this.status.value = 'error'
-            reply.processedContent = '抱歉，我在回复时遇到了一些问题，请稍后再试。'
+            console.error(error)
+            reply.content = '抱歉，我在回复时遇到了一些问题，请稍后再试。'
         }
     }
 
-    /** 工具调用循环：持续执行直到得到send结果 */
-    private async processToolLoop(reply: Message) {
-        reply.toolCalls = []
-
-        while (true) {
-            const { raw, parsed } = await this.streamAndParse(reply)
-
-            // JSON未完整，结束
-            if (!parsed.isComplete || !parsed.toolName) break
-
-            // 执行工具
-            const result = toolService.execute(parsed.toolName, parsed.methodName, parsed.params)
-            console.log(`[Tool] ${parsed.toolName}`, result)
-
-            // 记录工具调用
-            reply.toolCalls.push({
-                name: parsed.toolName,
-                method: parsed.methodName || undefined,
-                params: parsed.params,
-                result: result.data ?? result.success,
-                timestamp: Date.now()
-            })
-
-            if (result.display) {
-                reply.processedContent = result.display
-                if (parsed.toolName === 'select' && result.data) {
-                    const selectData = result.data as { mode: 'single' | 'multi', options: string[] }
-                    reply.selectOptions = {
-                        mode: selectData.mode,
-                        options: selectData.options
-                    }
-                }
-                break
-            }
-
-            this.addHiddenMessages(raw, result.data ?? result.success)
-            reply.content = ''
-        }
-    }
-
-    /** 流式接收并实时解析 */
-    private async streamAndParse(reply: Message) {
-        let raw = ''
-
-        for await (const chunk of this.stream()) {
-            raw += chunk.choices[0]?.delta?.content || ''
-            reply.content = raw  // 实时更新原始内容
-
-            const parsed = toolService.parse(raw)
-
-            // 实时更新处理后的内容
-            if ((parsed.toolName === 'send' || parsed.toolName === 'select') && parsed.params.length) {
-                reply.processedContent = parsed.params[0] as string
-            }
-        }
-
-        return { raw, parsed: toolService.parse(raw) }
-    }
-
-    /** 添加隐藏消息（用于工具续聊） */
-    private addHiddenMessages(aiResponse: string, toolResult: unknown) {
-        this.messages.value.push(
-            { role: 'assistant', content: aiResponse, visible: false },
-            { role: 'user', content: JSON.stringify(toolResult), visible: false }
-        )
-    }
-
-    /** 流式调用AI */
+    /**
+     * 流式调用AI
+     */
     private async *stream() {
         const provider = settingService.get('provider')
         const client = new OpenAI({
@@ -151,7 +141,7 @@ class ChatService {
         })
 
         const response = await client.chat.completions.create({
-            model: settingService.get('models')?.[provider] || 'glm-4-flash',
+            model: settingService.get('models')?.[provider] || '',
             messages: this.messages.value.map(m => ({ role: m.role, content: m.content })),
             stream: true
         })

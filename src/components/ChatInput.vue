@@ -1,6 +1,6 @@
 <template>
     <v-footer app color="transparent" class="pa-0">
-        <v-container class="pa-3 pa-sm-4" style="max-width: 900px;">
+        <v-container class="pa-3" style="max-width: 900px;">
             <v-card variant="flat" class="rounded-xl">
                 <v-textarea v-model="chatService.editorText.value" placeholder="想聊点什么..."
                     rows="1" max-rows="6" auto-grow hide-details variant="plain" class="px-4 pb-0"
@@ -18,29 +18,33 @@
             </p>
         </v-container>
     </v-footer>
-
-
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
+import { nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import { chatService } from '@/utils/chatService'
-import { settingService } from '@/utils/settingService'
 
-const settings = ref(settingService.getAll())
+const emit = defineEmits<{
+    (e: 'roomCreated'): void
+}>()
 
+const router = useRouter()
 
-function handleSend() {
-    const provider = settings.value.provider
-    const apiKey = settings.value.apiKeys?.[provider] || ''
+async function handleSend() {
+    const text = chatService.editorText.value.trim()
+    if (!text) return
 
-    if (!apiKey) {
-        // 如果没有 API 密钥，直接发送（可能会失败，但不显示弹窗）
-        chatService.send()
-        return
+    const oldRoomId = chatService.currentRoomId.value
+    await chatService.getReply(text)
+
+    // 如果创建了新咨询室（从 null 或 -1 变成有效ID），跳转路由并刷新列表
+    const newRoomId = chatService.currentRoomId.value
+    const wasNullOrDraft = oldRoomId === null || oldRoomId === -1
+    if (wasNullOrDraft && newRoomId !== null && newRoomId > 0) {
+        router.push(`/room/${newRoomId}`)
+        emit('roomCreated')
     }
-
-    chatService.send()
 }
 
 function handleKeydown(event: KeyboardEvent) {

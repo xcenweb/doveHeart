@@ -168,23 +168,6 @@
                 </div>
             </v-container>
         </v-main>
-
-        <!-- 确认重置对话框 -->
-        <v-dialog v-model="showResetDialog" max-width="400">
-            <v-card class="rounded-xl pa-4">
-                <v-card-title class="text-h6 font-weight-bold pb-2">确认重置？</v-card-title>
-                <v-card-text class="text-medium-emphasis pb-6">
-                    此操作将清除您所有的个性化配置并恢复为系统默认状态。此操作不可撤销。
-                </v-card-text>
-                <v-card-actions class="px-0 ga-2">
-                    <v-spacer />
-                    <v-btn variant="text" @click="showResetDialog = false" class="px-6 rounded-pill">取消</v-btn>
-                    <v-btn color="error" variant="flat" @click="resetSettings" class="px-6 rounded-pill">
-                        确认重置
-                    </v-btn>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
     </v-app>
 </template>
 
@@ -192,6 +175,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { settingService, type AppSettings, optionsSetting } from '@/utils/settingService'
 import { useSnackbar } from '@/components/global/snackbarService'
+import { useDialog } from '@/components/global/dialogService'
 
 // 设置项
 const settings = ref<AppSettings>(settingService.getAll())
@@ -200,9 +184,6 @@ const settings = ref<AppSettings>(settingService.getAll())
 onMounted(() => {
     settingService.initThemeWatcher()
 })
-
-// 重置确认对话框状态
-const showResetDialog = ref(false)
 
 // 当前供应商名称
 const currentProviderName = computed(() => {
@@ -261,16 +242,13 @@ const updateSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K
 }
 
 // 显示重置确认对话框
-const confirmReset = () => {
-    showResetDialog.value = true
-}
-
-// 恢复默认设置
-const resetSettings = () => {
-    settingService.reset()
-    settings.value = settingService.getAll()
-    settingService.applyTheme()
-    showResetDialog.value = false
-    useSnackbar().info('已恢复默认设置')
+const confirmReset = async () => {
+    const result = await useDialog().confirmDialog('确认重置？', '此操作将清除您所有的个性化配置并恢复为系统默认状态。此操作不可撤销。')
+    if (result.confirmed) {
+        settingService.reset()
+        settings.value = settingService.getAll()
+        settingService.applyTheme()
+        useSnackbar().info('已恢复默认设置')
+    }
 }
 </script>
