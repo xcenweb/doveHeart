@@ -19,18 +19,20 @@
         </v-avatar>
         <v-card variant="flat" class="rounded-xl rounded-ts-sm" max-width="70%">
 
-            <div v-if="status === 'loading' && !message.content" class="pa-3 d-flex align-center ga-1">
+            <!-- 加载中显示 -->
+            <div v-if="message.status === 'loading' && !message.content" class="pa-3 d-flex align-center ga-1">
                 <span class="dot"></span>
                 <span class="dot"></span>
                 <span class="dot"></span>
             </div>
 
-            <v-card-text v-else-if="message.content" class="pa-3 text-body-2 text-pre-wrap">
+            <!-- 消息内容 -->
+            <v-card-text v-else class="pa-3 text-body-2 text-pre-wrap">
                 {{ message.content }}
             </v-card-text>
-        </v-card>
 
-        <v-icon v-if="status === 'error'" size="20" icon="mdi-alert-circle" class="mt-auto mb-auto" color="error"/>
+        </v-card>
+        <v-icon v-if="message.status === 'error'" size="20" icon="mdi-alert-circle" class="mt-auto mb-auto" color="error"/>
     </div>
 
 </template>
@@ -40,7 +42,6 @@ import { type Message } from '@/utils/chatService'
 
 defineProps<{
     message: Message
-    status: string
 }>()
 </script>
 

@@ -1,19 +1,49 @@
 import { ref } from 'vue'
 import OpenAI from 'openai'
 import { settingService, optionsSetting } from './settingService'
-import { dbService, type ChatRoom } from './dbService'
-import systemPrompt from '@/prompts/tool-v2.md?raw'
+import { dbService } from './dbService'
+import systemPrompt from '@/prompts/tool-v1.md?raw'
 
 export interface Message {
+    id?: number
+    roomId?: number
+    timestamp?: number
+    status?: 'loading' | 'success' | 'error'
     role: 'user' | 'system' | 'assistant'
     content: string
+}
+
+export interface ChatRoom {
+    id?: number
+    name: string
+    createdAt: number
+    updatedAt: number
+    isPinned?: boolean
 }
 
 class ChatService {
     editorText = ref('')
     messages = ref<Message[]>([])
-    status = ref<'ready' | 'loading' | 'error'>('ready')
     currentRoomId = ref<number | null>(null)
+
+    /** 检查是否为草稿状态 */
+    private isDraft(roomId: number | null): boolean {
+        return roomId === null || roomId === -1
+    }
+
+    /** 确保消息列表以 system 提示词开头 */
+    private ensureSystemPrompt() {
+        if (this.messages.value.length === 0 || this.messages.value[0].role !== 'system') {
+            this.messages.value.unshift({ role: 'system', content: systemPrompt })
+        }
+    }
+
+    /** 获取用于AI请求的消息列表（过滤空内容的助手消息） */
+    private getMessagesForAI() {
+        return this.messages.value
+            .filter(m => !(m.role === 'assistant' && m.content === ''))
+            .map(m => ({ role: m.role, content: m.content }))
+    }
 
     /**
      * 切换到指定咨询室
@@ -21,10 +51,13 @@ class ChatService {
     async switchRoom(roomId: number | null) {
         this.currentRoomId.value = roomId
         this.messages.value = []
-        this.status.value = 'ready'
 
         if (roomId !== null) {
-            await this.loadRoomHistory(roomId)
+            const history = await dbService.getRoomMessages(roomId)
+            if (history.length > 0) {
+                this.messages.value = history
+            }
+            this.ensureSystemPrompt()
         }
     }
 
@@ -32,37 +65,29 @@ class ChatService {
      * 创建新咨询室（草稿状态，未写入数据库）
      */
     createRoom() {
-        this.currentRoomId.value = -1  // -1 表示草稿状态
+        this.currentRoomId.value = -1
         this.messages.value = []
-        this.status.value = 'ready'
     }
 
     /**
      * 获取所有咨询室
      */
-    async getRooms(): Promise<ChatRoom[]> {
-        return await dbService.getAllRooms()
+    getRooms(): Promise<ChatRoom[]> {
+        return dbService.getAllRooms()
     }
 
     /**
      * 重命名咨询室
      */
-    async renameRoom(roomId: number, name: string) {
-        await dbService.updateRoomName(roomId, name)
+    renameRoom(roomId: number, name: string): Promise<void> {
+        return dbService.updateRoomName(roomId, name)
     }
 
     /**
-     * 置顶咨询室
+     * 切换咨询室置顶状态
      */
-    async pinRoom(roomId: number) {
-        await dbService.pinRoom(roomId)
-    }
-
-    /**
-     * 取消置顶
-     */
-    async unpinRoom(roomId: number) {
-        await dbService.unpinRoom(roomId)
+    togglePinRoom(roomId: number, isPinned: boolean): Promise<void> {
+        return dbService.setRoomPinned(roomId, isPinned)
     }
 
     /**
@@ -76,57 +101,49 @@ class ChatService {
     }
 
     /**
-     * 加载指定咨询室的历史消息
-     */
-    async loadRoomHistory(roomId: number) {
-        const history = await dbService.getRoomMessages(roomId)
-        if (history.length > 0) {
-            this.messages.value = history
-                .filter(m => m.role !== 'system')
-                .map(m => ({ role: m.role, content: m.content }))
-        }
-    }
-
-    /**
      * 获取回复
      */
     async getReply(text: string) {
-        // 如果没有有效咨询室（null 或草稿状态 -1），创建真正的咨询室
-        if (this.currentRoomId.value === null || this.currentRoomId.value === -1) {
+        const oldRoomId = this.currentRoomId.value
+
+        // 如果没有有效咨询室（null 或草稿状态），创建真正的咨询室
+        if (this.isDraft(oldRoomId)) {
             const roomId = await dbService.createRoom(text.slice(0, 20))
             this.currentRoomId.value = roomId
         }
 
         const roomId = this.currentRoomId.value!
 
-        // 仅在内存中添加 system prompt，不存储到数据库（避免重复和缓存问题）
-        if (this.messages.value.length === 0 || this.messages.value[0].role !== 'system') {
-            this.messages.value.unshift({ role: 'system', content: systemPrompt })
-        }
-
+        this.ensureSystemPrompt()
         this.editorText.value = ''
-        this.messages.value.push({ role: 'user', content: text })
-        await dbService.addMessage({ roomId, role: 'user', content: text, timestamp: Date.now() })
 
-        const assistantMessage: Message = { role: 'assistant', content: '' }
-        this.messages.value.push(assistantMessage)
-        const assistantDbId = await dbService.addMessage({ roomId, role: 'assistant', content: '', timestamp: Date.now() })
+        // 添加用户消息和助手占位消息
+        this.messages.value.push(
+            { role: 'user', content: text },
+            { role: 'assistant', content: '', status: 'loading' }
+        )
 
-        this.status.value = 'loading'
         const reply = this.messages.value[this.messages.value.length - 1]
 
         try {
+            await dbService.addMessage({ roomId, role: 'user', content: text, timestamp: Date.now() })
+
             for await (const chunk of this.stream()) {
-                const content = chunk.choices[0]?.delta?.content || ''
-                reply.content += content
+                reply.content += chunk.choices[0]?.delta?.content || ''
             }
-            await dbService.updateMessage(assistantDbId, reply.content)
-            this.status.value = 'ready'
-        } catch (error) {
-            this.status.value = 'error'
-            console.error(error)
+            reply.status = 'success'
+        } catch {
+            reply.status = 'error'
             reply.content = '抱歉，我在回复时遇到了一些问题，请稍后再试。'
         }
+
+        await dbService.addMessage({
+            roomId,
+            role: 'assistant',
+            content: reply.content,
+            timestamp: Date.now(),
+            status: reply.status
+        })
     }
 
     /**
@@ -142,13 +159,12 @@ class ChatService {
 
         const response = await client.chat.completions.create({
             model: settingService.get('models')?.[provider] || '',
-            messages: this.messages.value.map(m => ({ role: m.role, content: m.content })),
+            messages: this.getMessagesForAI(),
             stream: true
         })
 
         for await (const chunk of response) yield chunk
     }
-
 }
 
 export const chatService = new ChatService()

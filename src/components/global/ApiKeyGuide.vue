@@ -65,14 +65,14 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { settingService, optionsSetting } from '@/utils/settingService'
-import { useSnackbar } from './global/snackbarService'
+import { useSnackbar } from './snackbarService'
+import { useApiKeyGuide } from './apiKeyGuideService'
 
-const props = defineProps<{ modelValue: boolean }>()
-const emit = defineEmits<{ 'update:modelValue': [value: boolean]; 'complete': [] }>()
+const apiKeyGuide = useApiKeyGuide()
 
 const dialog = computed({
-    get: () => props.modelValue,
-    set: (value) => emit('update:modelValue', value)
+    get: () => apiKeyGuide.visible.value,
+    set: (value) => apiKeyGuide.visible.value = value
 })
 
 // 状态和计算属性
@@ -148,7 +148,7 @@ const saveApiKey = async () => {
 
         useSnackbar().success('配置成功！')
         dialog.value = false
-        emit('complete')
+        apiKeyGuide.notifyComplete()
     } catch {
         useSnackbar().error('保存失败，请重试')
     } finally {

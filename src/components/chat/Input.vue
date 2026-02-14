@@ -1,9 +1,9 @@
 <template>
     <v-footer app color="transparent" class="pa-0">
-        <v-container class="pa-3" style="max-width: 900px;">
+        <v-container class="py-2" max-width="800px">
             <v-card variant="flat" class="rounded-xl">
                 <v-textarea v-model="chatService.editorText.value" placeholder="想聊点什么..."
-                    rows="1" max-rows="6" auto-grow hide-details variant="plain" class="px-4 pb-0"
+                    rows="1" max-rows="6" auto-grow hide-details variant="plain" class="px-4 pb-0 pt-0"
                     @keydown="handleKeydown" />
                 <div class="d-flex align-center pa-2">
                     <v-spacer />
@@ -13,7 +13,7 @@
                         variant="flat" color="primary" icon="mdi-send" size="x-small" class="rounded-lg" />
                 </div>
             </v-card>
-            <p class="text-center text-caption text-medium-emphasis mt-2">
+            <p class="text-center text-caption text-medium-emphasis mt-1">
                 内容由AI生成，仅供参考
             </p>
         </v-container>
@@ -55,7 +55,6 @@ function handleKeydown(event: KeyboardEvent) {
     }
 }
 
-/** 聚焦输入框 */
 function focusInput() {
     nextTick(() => {
         const textarea = document.querySelector('textarea')
