@@ -49,7 +49,7 @@
                     <template v-slot:item.3>
                         <div class="pa-5">
                                 <v-text-field v-model="apiKey" placeholder="xxxxxxxxxxxxxxxxxxxxxxxx" hide-details
-                                    type="password" @paste="handlePaste" label="API 密钥" class="mb-4">
+                                    type="password" label="密钥" class="mb-4">
                                 </v-text-field>
                             <v-btn color="primary" variant="flat" block :loading="saving" @click="saveApiKey">
                                 保存
@@ -108,24 +108,6 @@ const openApiKeyPage = () => {
     }
 }
 
-// 剪贴板操作
-const handleClipboard = (text: string) => {
-    if (text) {
-        // 清理非ASCII字符，只保留标准的API密钥字符
-        const cleanText = text.trim().replace(/[^\x00-\x7F]/g, '')
-        apiKey.value = cleanText
-        clipboardDetected.value = true
-        useSnackbar().success('已粘贴密钥')
-    } else {
-        useSnackbar().warning('剪贴板为空')
-    }
-}
-
-const handlePaste = (event: ClipboardEvent) => {
-    const text = event.clipboardData?.getData('text') || ''
-    handleClipboard(text)
-}
-
 // 保存 API 密钥
 const saveApiKey = async () => {
     if (!apiKey.value.trim()) {
@@ -150,7 +132,7 @@ const saveApiKey = async () => {
         dialog.value = false
         apiKeyGuide.notifyComplete()
     } catch {
-        useSnackbar().error('保存失败，请重试')
+        useSnackbar().error('配置失败，请重试')
     } finally {
         saving.value = false
     }

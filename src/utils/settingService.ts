@@ -63,7 +63,7 @@ export const defaultSetting: AppSettings = {
     updateChannel: 'beta',
     provider: 'chatglm',
     apiKeys: { chatglm: '', openai: '' },
-    models: { chatglm: 'glm-4-flash', openai: 'gpt-4' },
+    models: { chatglm: 'glm-4', openai: 'gpt-4' },
 }
 
 /**

@@ -176,6 +176,7 @@ import { ref, computed, onMounted } from 'vue'
 import { settingService, type AppSettings, optionsSetting } from '@/utils/settingService'
 import { useSnackbar } from '@/components/global/snackbarService'
 import { useDialog } from '@/components/global/dialogService'
+import router from '@/routers'
 
 // 设置项
 const settings = ref<AppSettings>(settingService.getAll())
@@ -249,6 +250,7 @@ const confirmReset = async () => {
         settings.value = settingService.getAll()
         settingService.applyTheme()
         useSnackbar().info('已恢复默认设置')
+        router.back()
     }
 }
 </script>

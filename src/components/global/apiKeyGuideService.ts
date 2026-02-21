@@ -16,7 +16,7 @@ class ApiKeyGuideService {
      * 检查是否需要显示 ApiKeyGuide 弹窗（初始化引导）
      * 如果未配置 API Key 则自动显示
      */
-    checkAndShow(onComplete?: () => void): void {
+    check(onComplete?: () => void): void {
         const settings = settingService.getAll()
         const apiKey = settings.apiKeys?.[settings.provider] || ''
         if (!apiKey) {
